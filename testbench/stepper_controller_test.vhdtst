@@ -1,0 +1,63 @@
+LIBRARY ieee;
+USE ieee.std_logic_1164.all;
+USE ieee.numeric_std.all;
+
+-- Testbench entity
+entity Stepper_Controller_Test is
+end Stepper_Controller_Test;
+
+architecture behavior of Stepper_Controller_Test is
+	-- Declare the Unit Under Test
+	component Stepper_Controller
+		port(
+			i_direction:	in	std_logic;
+			i_step:		in	std_logic;
+			o_position:	out	unsigned (1 downto 0);
+			o_a1:		out	integer range 0 to 1000;
+			o_a3:		out	integer range 0 to 1000;
+			o_b1:		out	integer range 0 to 1000;
+			o_b3:		out	integer range 0 to 1000
+		);
+	end component;
+	
+	-- Declare inputs, and initialize them
+	signal direction:	std_logic			:= '0';
+	signal step:		std_logic			:= '0';
+	
+	-- Declare outputs, and initialize them.
+	signal position:	unsigned (1 downto 0);
+	signal a1:		integer range 0 to 1000	:= 0;
+	signal a3:		integer range 0 to 1000	:= 0;
+	signal b1:		integer range 0 to 1000	:= 0;
+	signal b3:		integer range 0 to 1000	:= 0;
+	
+begin
+	UUT: Stepper_Controller port map (
+		i_direction => direction,
+		i_step => step,
+		o_position => position,
+		o_a1 => a1,
+		o_a3 => a3,
+		o_b1 => b1,
+		o_b3 => b3
+	);
+	
+	-- Clock process
+	clk_process : process
+	begin
+		step <= '1';
+		wait for 5 ns;
+		step <= '0';
+		wait for 5 ns;
+	end process;
+	
+	-- Stimulus process
+	stimulus : process
+	begin
+		wait for 4 ns;
+		direction <= '1';
+		wait for 100 ns;
+		direction <= '0';
+		wait;
+	end process;
+end;
