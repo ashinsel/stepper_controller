@@ -2,14 +2,15 @@
 PROJECT=stepper_controller
 
 # VHDL files
-FILES= src/stepper_controller.vhdl
+FILES= src/config.vhdl src/stepper_controller.vhdl 
 
 # Testbench files
 SIMTOP = stepper_controller_test
 SIMFILES= testbench/stepper_controller_test.vhdtst
 
 # Simulation break condition
-GHDL_SIM_OPT = --assert-level=error --stop-time=500ns
+GHDL_SIM_TIME = 500ns
+GHDL_SIM_OPT = --assert-level=error --stop-time=$(GHDL_SIM_TIME)
 
 SIMDIR = sim
 
