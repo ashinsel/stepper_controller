@@ -1,7 +1,7 @@
 library ieee;
 use ieee.std_logic_1164.all;
-use ieee.numeric_std.all;
 
+use ieee.numeric_std.all;
 use work.config.all;
 
 
@@ -24,16 +24,16 @@ entity Stepper_Controller is
 		--o_quadrant:	out	std_logic_vector( 1 downto 0 );
 		
 		-- Stepper motor coil outputs, in tenths of a percent
-		o_a1:		out	natural range 0 to 1000		:= 0;
-		o_a3:		out	natural range 0 to 1000		:= 0;
-		o_b1:		out	natural range 0 to 1000		:= 0;
-		o_b3:		out	natural range 0 to 1000		:= 0
+		o_a1:		out	unsigned(9 downto 0)	:= (others => '0');
+		o_a3:		out	unsigned(9 downto 0)	:= (others => '0');
+		o_b1:		out	unsigned(9 downto 0)	:= (others => '0');
+		o_b3:		out	unsigned(9 downto 0)	:= (others => '0')
 	);
 end Stepper_Controller;
 
 architecture Behavioral of Stepper_Controller is
-	signal quadrant:	std_logic_vector( 1 downto 0)		:= (others => '0');
-	signal position:	natural range 0 to 255	:= 0;--	:= (others => '0');
+	signal quadrant:	unsigned( 1 downto 0 )			:= (others => '0');
+	signal position:	unsigned( 7 downto 0 )			:= (others => '0');
 
 begin	
 	-- Resets the controller to a known state.
@@ -49,7 +49,7 @@ begin
 	process(i_reset, i_step) begin
 		if ( i_reset = '1' ) then
 			quadrant <= (others => '0');
-			position <= 0;
+			position <= (others => '0');
 		
 		else if ( rising_edge( i_step ) ) then
 		
@@ -57,21 +57,18 @@ begin
 			if ( i_direction = '0' ) then
 				if ( position = 255 ) then
 					-- Switch quadrants.
-					quadrant <= std_logic_vector(unsigned(quadrant) + 1);
-					position <= 0;
-				else
-					position <= position + 1;
+					quadrant <= quadrant + 1;
 				end if;
+				position <= position + 1;				
 				
 			-- Decreasing position
 			else
 				if ( position = 0 ) then
 					-- Switch quadrants.
-					quadrant <= std_logic_vector(unsigned(quadrant) - 1);
-					position <= 255;
-				else
-					position <= position - 1;
+					quadrant <= quadrant - 1;
 				end if;
+				position <= position - 1;
+
 			end if;	
 		end if;
 		end if;
@@ -83,9 +80,19 @@ begin
 	--o_position <= position;
 	--o_quadrant <= quadrant;
 	
+	o_a1 <= to_unsigned( power_table(to_integer(position))  , 10) when quadrant="00"
+		else to_unsigned( power_table( 256 - to_integer(position)), 10) when quadrant="11"
+		else (others => '0');
 	
-	o_a1 <= power_table(position) when quadrant="00" else power_table(256-position) when quadrant="11" else 0;
-	o_a3 <= power_table(position) when quadrant="10" else power_table(256-position) when quadrant="01" else 0;
-	o_b1 <= power_table(position) when quadrant="01" else power_table(256-position) when quadrant="00" else 0;
-	o_b3 <= power_table(position) when quadrant="11" else power_table(256-position) when quadrant="10" else 0;
+	o_a3 <= to_unsigned( power_table(to_integer(position))  , 10) when quadrant="10"
+		else to_unsigned( power_table( 256 - to_integer(position)), 10) when quadrant="01"
+		else (others => '0');
+	
+	o_b1 <= to_unsigned( power_table(to_integer(position))  , 10) when quadrant="01"
+		else to_unsigned( power_table( 256 - to_integer(position)), 10) when quadrant="00"
+		else (others => '0');
+	
+	o_b3 <= to_unsigned( power_table(to_integer(position))  , 10) when quadrant="11"
+		else to_unsigned( power_table( 256 - to_integer(position)), 10) when quadrant="10"
+		else (others => '0');
 end;

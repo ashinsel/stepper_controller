@@ -6,7 +6,7 @@ FILES= src/config.vhdl src/stepper_controller.vhdl
 
 # Testbench files
 SIMTOP = stepper_controller_test
-SIMFILES= testbench/stepper_controller_test.vhdtst
+SIMFILES= testbench/stepper_controller_test.vhdl
 
 # Simulation break condition
 GHDL_SIM_TIME = 500ns
