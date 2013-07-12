@@ -13,13 +13,13 @@ architecture behavior of Stepper_Controller_Test is
 			i_direction:	in	std_logic;
 			i_step:		in	std_logic;
 			i_reset:	in	std_logic;
-			--i_microsteps:	in	std_logic_vector(7 downto 0);
+			i_microsteps:	in	std_logic_vector(2 downto 0);
 			--o_position:	out	natural range 0 to 1000;
 			--o_quadrant:	out	std_logic_vector(1 downto 0);
-			o_a1:		out	unsigned (9 downto 0);
-			o_a3:		out	unsigned (9 downto 0);
-			o_b1:		out	unsigned (9 downto 0);
-			o_b3:		out	unsigned (9 downto 0)
+			o_a1_m:		out	unsigned (9 downto 0);
+			o_a3_m:		out	unsigned (9 downto 0);
+			o_b1_m:		out	unsigned (9 downto 0);
+			o_b3_m:		out	unsigned (9 downto 0)
 		);
 	end component;
 	
@@ -27,7 +27,7 @@ architecture behavior of Stepper_Controller_Test is
 	signal direction:	std_logic			:= '0';
 	signal step:		std_logic			:= '0';
 	signal reset:		std_logic			:= '0';
-	--signal microsteps:	std_logic_vector(7 downto 0)	:= "00000000";
+	signal microsteps:	std_logic_vector(2 downto 0)	:= (others => '0');
 	
 	-- Declare outputs, and initialize them.
 	--signal position:	natural range 0 to 1000;
@@ -42,13 +42,13 @@ begin
 		i_direction => direction,
 		i_step => step,
 		i_reset => reset,
-		--i_microsteps => microsteps,
+		i_microsteps => microsteps,
 		--o_position => position,
 		--o_quadrant => quadrant,
-		o_a1 => a1,
-		o_a3 => a3,
-		o_b1 => b1,
-		o_b3 => b3
+		o_a1_m => a1,
+		o_a3_m => a3,
+		o_b1_m => b1,
+		o_b3_m => b3
 	);
 	
 	-- Clock process
@@ -69,10 +69,10 @@ begin
 		reset <= '0';
 		wait for 10 ns;
 		direction <= '1';
-		wait for 100 ns;
+		wait for 25 ns;
 		direction <= '0';
-		wait for 150 ns;
-		direction <= '1';
+		wait for 15 ns;
+		microsteps <= "001";
 		wait;
 	end process;
 end;

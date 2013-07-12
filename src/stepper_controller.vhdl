@@ -14,7 +14,7 @@ entity Stepper_Controller is
         i_step:     in  std_logic;
 
         -- Use microsteps instead of whole steps
-        --i_microsteps: in  std_logic_vector(7 downto 0);
+        i_microsteps: in  std_logic_vector(2 downto 0);
 
         -- Reset signal
         i_reset:    in  std_logic;
@@ -34,6 +34,7 @@ end Stepper_Controller;
 architecture Behavioral of Stepper_Controller is
     signal quadrant:    unsigned( 1 downto 0 )          := (others => '0');
     signal position:    unsigned( 7 downto 0 )          := (others => '0');
+    signal increment:	unsigned( 8 downto 0 )		:= "000000001";
 
  type power_table_type is array (0 to 256) of unsigned(15 downto 0);
 -- Power table: holds the values of a quarter sine wave, in 0.1%
@@ -85,7 +86,12 @@ begin
     --      out2 <= 0;
     --  end if;
     --end process;
-
+    
+    set_increment:process(i_microsteps) begin
+        -- Update the step increment.
+        increment <= "100000000" srl to_integer(unsigned(i_microsteps));
+    end process;
+	
     process(i_reset, i_step) begin
         if ( i_reset = '1' ) then
             quadrant <= (others => '0');
@@ -95,19 +101,21 @@ begin
 
             -- Increasing position
             if ( i_direction = '0' ) then
-                if ( position = 255 ) then
-                    -- Switch quadrants.
+                if ( (255 - position) < increment) then
+                    -- Switch quadrants
                     quadrant <= quadrant + 1;
-                end if;
-                position <= position + 1;
+		end if;
+		position <= position + increment(7 downto 0);
+		
 
             -- Decreasing position
             else
-                if ( position = 0 ) then
-                    -- Switch quadrants.
+                if (position < increment) then
+                    -- Switch quadrants, and 
                     quadrant <= quadrant - 1;
+                    
                 end if;
-                position <= position - 1;
+                position <= position - increment(7 downto 0);
 
             end if;
         end if;
