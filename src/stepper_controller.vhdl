@@ -8,33 +8,40 @@ use work.config.all;
 entity Stepper_Controller is
     port (
         -- Determines the direction of the next step.
-        i_direction:    in  std_logic;
+        i_direction     : in    std_logic;
 
         -- Signal to move to the next step.
-        i_step:     in  std_logic;
+        i_step          : in    std_logic;
 
-        -- Use microsteps instead of whole steps
-        i_microsteps: in  std_logic_vector(2 downto 0);
+        -- Use micro-steps instead of whole steps
+        i_microsteps    : in    std_logic_vector(2 downto 0);
+		
+		-- Clock signal
+		i_clk           : in    std_logic;
 
         -- Reset signal
-        i_reset:    in  std_logic;
+        i_reset         : in    std_logic;        
 
         -- Debug output for position, and quadrant
         --o_position:   out std_logic_vector(7 downto 0);
         --o_quadrant:   out std_logic_vector( 1 downto 0 );
 
-        -- Stepper motor coil outputs, in tenths of a percent
-        o_a1_m:       out unsigned(9 downto 0)    := (others => '0');
-        o_a3_m:       out unsigned(9 downto 0)    := (others => '0');
-        o_b1_m:       out unsigned(9 downto 0)    := (others => '0');
-        o_b3_m:       out unsigned(9 downto 0)    := (others => '0')
+        -- Stepper motor coil output powers, in tenths of a percent
+        o_a1_m          : out   unsigned(9 downto 0)                := (others => '0');
+        o_a3_m          : out   unsigned(9 downto 0)                := (others => '0');
+        o_b1_m          : out   unsigned(9 downto 0)                := (others => '0');
+        o_b3_m          : out   unsigned(9 downto 0)                := (others => '0')
     );
 end Stepper_Controller;
 
 architecture Behavioral of Stepper_Controller is
-    signal quadrant:    unsigned( 1 downto 0 )          := (others => '0');
-    signal position:    unsigned( 7 downto 0 )          := (others => '0');
-    signal increment:	unsigned( 8 downto 0 )		:= "000000001";
+    signal quadrant     : unsigned( 1 downto 0 )                    := (others => '0');
+    signal position     : unsigned( 7 downto 0 )                    := (others => '0');
+    signal increment    : unsigned( 8 downto 0 )                    := "000000001";
+    
+    -- step input delay and rising edge detection
+    signal step_d       :       std_logic                           := '0';
+    signal step_RE      :       std_logic                           := '0';
 
  type power_table_type is array (0 to 256) of unsigned(15 downto 0);
 -- Power table: holds the values of a quarter sine wave, in 0.1%
@@ -77,57 +84,87 @@ architecture Behavioral of Stepper_Controller is
     );
 
 begin
-    -- Resets the controller to a known state.
-    --process(i_reset) begin
-    --  if( rising_edge(i_reset) ) then
-    --      quadrant <= (others => '0');
-    --      position <= (others => '0');
-    --      out1 <= 0;
-    --      out2 <= 0;
-    --  end if;
-    --end process;
+    ------------------------------------------------------------------------------------------------
+    --  Process:        increment_proc
+    --  Description:    control logic for the micro-step increment value.
+    --  Signals:        increment
+    ------------------------------------------------------------------------------------------------
+    increment_proc : process( i_clk ) begin
+        if rising_edge( i_clk ) then
+            -- Update the step increment.  No need to check for reset.
+            increment := "100000000" srl to_integer(unsigned( i_microsteps ));
+        end if;                                                     -- end rising_edge( i_clk ) 
+    end process increment_proc;
     
-    set_increment:process(i_microsteps) begin
-        -- Update the step increment.
-        increment <= "100000000" srl to_integer(unsigned(i_microsteps));
-    end process;
-	
-    process(i_reset, i_step) begin
-        if ( i_reset = '1' ) then
-            quadrant <= (others => '0');
-            position <= (others => '0');
-
-        else if ( rising_edge( i_step ) ) then
-
-            -- Increasing position
-            if ( i_direction = '0' ) then
-                if ( (255 - position) < increment) then
-                    -- Switch quadrants
-                    quadrant <= quadrant + 1;
-		end if;
-		position <= position + increment(7 downto 0);
-		
-
-            -- Decreasing position
-            else
-                if (position < increment) then
-                    -- Switch quadrants, and 
-                    quadrant <= quadrant - 1;
+    ------------------------------------------------------------------------------------------------
+    --  Process:        step_proc
+    --  Description:    synchronizes the step input, and detects the rising edge.
+    --  Signals:        step_d
+    --                  step_RE
+    ------------------------------------------------------------------------------------------------
+    step_proc : process( i_clk ) begin
+        if rising_edge( i_clk ) begin
+            
+            -- Check for reset
+            if i_reset = '1' then
+                step_d  <= '0';
+            else -- NOT reset
+                step_d  <= step_i;
+            end if;                                                 -- end check for reset
+        end if;                                                     -- end rising_edge( i_clk )
+    end process step_proc;
+    -- Assert the rising edge signal for one clock cycle.
+    step_RE <= '1' when i_step = '1' and step_d = '0' else '0';
+    
+    ------------------------------------------------------------------------------------------------
+    --  Process:        counter_proc
+    --  Description:    Controls the micro-stepping position signal.
+    --  Signals:        position
+    --                  quadrant
+    ------------------------------------------------------------------------------------------------
+	counter_proc : process( i_clk ) begin
+        if rising_edge( i_clk ) then
+        
+            -- Check for reset.
+            if i_reset = '1' then
+                position <= (others => '0');
+                quadrant <= (others => '0');
+            else -- NOT reset
+            
+                -- Check for normal steps
+                if step_RE = '1' then
+                    -- Increasing position
+                    if i_direction = '0' then
+                        -- see if we need to change quadrants
+                        if ( ( 255 - position ) < increment ) then
+                            quadrant <= quadrant + 1;
+                        end if;
+                        position <= position + increment(7 downto 0);
+                        
+                    -- Decreasing position
+                    elsif i_direction = '1' then
+                        -- see if we need to change quadrants
+                        if ( position < increment ) then
+                            quadrant <= quadrant - 1;
+                        end if;
+                        position <= position - increment(7 downto 0);
+                        
+                    end if;  -- end if i_direction = '0'
                     
+                end if; -- end if step_RE = '1'
+                
+                -- Check to see if full steps are requested
+                if i_microsteps = "000" then
+                    if position(7) = '1' then
+                        quadrant <= quadrant + 1;
+                    end if;
+                    position <= (others => '0');
                 end if;
-                position <= position - increment(7 downto 0);
-
-            end if;
-        end if;
-        end if;
-    end process;
-
-    process(position) begin
-    end process;
-
-    --o_position <= std_logic_vector(position);
-    --o_quadrant <= quadrant;
-
+            
+            end if; -- end check for reset
+        end if; -- end rising_edge( i_clk )
+    end process counter_proc;
+   
     o_a1_m <= power_table(to_integer(position))(9 downto 0) when quadrant="00"
         else  power_table( 256 - to_integer(position))(9 downto 0) when quadrant="11"
         else (others => '0');
