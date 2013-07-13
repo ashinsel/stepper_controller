@@ -34,7 +34,8 @@ end Stepper_Controller;
 architecture Behavioral of Stepper_Controller is
     signal quadrant:    unsigned( 1 downto 0 )          := (others => '0');
     signal position:    unsigned( 7 downto 0 )          := (others => '0');
-    signal increment:	unsigned( 8 downto 0 )		:= "000000001";
+    signal increment:	unsigned( 8 downto 0 )		    := "000000001";
+    variable temp_pos:  unsigned( 7 downto 0 )          := (others => '0');
 
  type power_table_type is array (0 to 256) of unsigned(15 downto 0);
 -- Power table: holds the values of a quarter sine wave, in 0.1%
@@ -92,7 +93,7 @@ begin
         increment <= "100000000" srl to_integer(unsigned(i_microsteps));
     end process;
 	
-    process(i_reset, i_step) begin
+    process(i_reset, i_step, i_microsteps) begin
         if ( i_reset = '1' ) then
             quadrant <= (others => '0');
             position <= (others => '0');
@@ -104,8 +105,8 @@ begin
                 if ( (255 - position) < increment) then
                     -- Switch quadrants
                     quadrant <= quadrant + 1;
-		end if;
-		position <= position + increment(7 downto 0);
+                end if;
+                position := position + increment(7 downto 0);
 		
 
             -- Decreasing position
@@ -115,9 +116,18 @@ begin
                     quadrant <= quadrant - 1;
                     
                 end if;
-                position <= position - increment(7 downto 0);
+                position := position - increment(7 downto 0);
 
             end if;
+            
+            -- If micro-stepping is disabled, move to the nearest full step.
+            if i_microsteps = "000" then
+                if (position(7) = '1') then
+                    quadrant <= quadrant + 1;
+                end if;
+                position <= (others => '0');
+            end if;
+            
         end if;
         end if;
     end process;
