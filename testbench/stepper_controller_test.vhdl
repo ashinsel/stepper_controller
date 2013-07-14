@@ -73,6 +73,10 @@ begin
 		direction <= '0';
 		wait for 15 ns;
 		microsteps <= "001";
+		wait for 7 ns;
+		microsteps <= "100";
+		wait for 20 ns;
+		microsteps <= "000";
 		wait;
 	end process;
 end;
